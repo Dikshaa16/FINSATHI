@@ -1,0 +1,14 @@
+node_modules
+.git
+.env.local
+.env.*.local
+*.log
+.DS_Store
+backend/node_modules
+backend/database.sqlite
+mobile
+FigmaUI
+.zenflow
+.zencoder
+*.md
+!README.md

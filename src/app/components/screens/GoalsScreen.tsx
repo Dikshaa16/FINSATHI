@@ -2,31 +2,25 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Target, Plus, CheckCircle2, Clock, TrendingUp, Zap, X } from "lucide-react";
 import { useUser } from "../../Root";
+import { useGoals } from "../../../hooks/useGoals";
 
-interface Goal {
-  id: number;
-  name: string;
-  emoji: string;
-  current: number;
-  target: number;
-  deadline: string;
-  color: string;
-  monthlyContrib: number;
-  status: "active" | "completed" | "paused";
-}
+// Goal colors for visual variety
+const goalColors = ["#00D68F", "#7C3AED", "#5B8DEF", "#F59E0B", "#EF4444", "#10B981", "#8B5CF6", "#06B6D4"];
 
-const initialGoals: Goal[] = [
-  { id: 1, name: "Emergency Fund", emoji: "🛡️", current: 45000, target: 100000, deadline: "Dec 2026", color: "#00D68F", monthlyContrib: 8000, status: "active" },
-  { id: 2, name: "Goa Trip", emoji: "✈️", current: 8500, target: 15000, deadline: "Jun 2026", color: "#7C3AED", monthlyContrib: 3250, status: "active" },
-  { id: 3, name: "MacBook Pro", emoji: "💻", current: 22000, target: 80000, deadline: "Mar 2027", color: "#5B8DEF", monthlyContrib: 5000, status: "active" },
-  { id: 4, name: "Marriage Fund", emoji: "💍", current: 150000, target: 500000, deadline: "Dec 2028", color: "#F59E0B", monthlyContrib: 12000, status: "active" },
-  { id: 5, name: "New Phone", emoji: "📱", current: 60000, target: 60000, deadline: "Apr 2026", color: "#10B981", monthlyContrib: 0, status: "completed" },
-];
-
-function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
-  const pct = Math.min(Math.round((goal.current / goal.target) * 100), 100);
-  const remaining = goal.target - goal.current;
+function GoalCard({ goal, userName }: { goal: any; userName: string }) {
+  // Assign color based on goal ID for consistency
+  const color = goalColors[parseInt(goal.id) % goalColors.length];
+  
+  const pct = Math.min(Math.round((goal.currentAmount / goal.targetAmount) * 100), 100);
+  const remaining = goal.targetAmount - goal.currentAmount;
   const isComplete = goal.status === "completed";
+
+  // Format target date
+  const targetDate = new Date(goal.targetDate);
+  const formattedDate = targetDate.toLocaleDateString('en-US', { 
+    month: 'short', 
+    year: 'numeric' 
+  });
 
   return (
     <motion.div
@@ -44,7 +38,7 @@ function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
       {!isComplete && (
         <div
           className="absolute -top-8 -right-8 w-24 h-24 rounded-full"
-          style={{ background: `radial-gradient(circle, ${goal.color}10 0%, transparent 70%)` }}
+          style={{ background: `radial-gradient(circle, ${color}10 0%, transparent 70%)` }}
         />
       )}
 
@@ -54,9 +48,9 @@ function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
           <div className="flex items-center gap-3">
             <div
               className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
-              style={{ background: `${goal.color}12`, border: `1px solid ${goal.color}20` }}
+              style={{ background: `${color}12`, border: `1px solid ${color}20` }}
             >
-              {goal.emoji}
+              {goal.emoji || "🎯"}
             </div>
             <div>
               <p style={{ fontSize: "14px", color: "#fff" }}>{goal.name}</p>
@@ -66,7 +60,7 @@ function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
                   : <Clock size={11} color="rgba(255,255,255,0.3)" strokeWidth={1.8} />
                 }
                 <span style={{ fontSize: "11px", color: isComplete ? "#00D68F" : "rgba(255,255,255,0.35)" }}>
-                  {isComplete ? "Goal reached! 🎉" : `By ${goal.deadline}`}
+                  {isComplete ? "Goal reached! 🎉" : `By ${formattedDate}`}
                 </span>
               </div>
             </div>
@@ -74,11 +68,11 @@ function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
           <div
             className="px-2 py-0.5 rounded-full"
             style={{
-              background: `${goal.color}15`,
-              border: `1px solid ${goal.color}25`,
+              background: `${color}15`,
+              border: `1px solid ${color}25`,
             }}
           >
-            <span style={{ fontSize: "12px", color: goal.color, fontWeight: 500 }}>{pct}%</span>
+            <span style={{ fontSize: "12px", color: color, fontWeight: 500 }}>{pct}%</span>
           </div>
         </div>
 
@@ -86,10 +80,10 @@ function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
         <div className="flex items-end justify-between mb-3">
           <div>
             <span style={{ fontSize: "22px", color: "#fff", letterSpacing: "-0.5px", fontWeight: 300 }}>
-              ₹{goal.current.toLocaleString("en-IN")}
+              ₹{goal.currentAmount.toLocaleString("en-IN")}
             </span>
             <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)", marginLeft: "6px" }}>
-              / ₹{goal.target.toLocaleString("en-IN")}
+              / ₹{goal.targetAmount.toLocaleString("en-IN")}
             </span>
           </div>
           {!isComplete && (
@@ -106,10 +100,10 @@ function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 1.2, delay: 0.2, ease: "easeOut" }}
-            style={{ background: isComplete ? "#00D68F" : goal.color }}
+            style={{ background: isComplete ? "#00D68F" : color }}
           >
             {!isComplete && (
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full" style={{ background: "#fff", boxShadow: `0 0 6px ${goal.color}` }} />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full" style={{ background: "#fff", boxShadow: `0 0 6px ${color}` }} />
             )}
           </motion.div>
         </div>
@@ -120,16 +114,16 @@ function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
             <div className="flex items-center gap-1.5">
               <Zap size={12} color="rgba(255,255,255,0.3)" strokeWidth={1.8} />
               <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>
-                Auto-saving ₹{goal.monthlyContrib.toLocaleString("en-IN")}/mo
+                {goal.priority} priority goal
               </span>
             </div>
             <motion.button
               whileTap={{ scale: 0.93 }}
               className="flex items-center gap-1 px-3 py-1.5 rounded-xl"
-              style={{ background: `${goal.color}12`, border: `1px solid ${goal.color}20` }}
+              style={{ background: `${color}12`, border: `1px solid ${color}20` }}
             >
-              <TrendingUp size={12} color={goal.color} strokeWidth={2} />
-              <span style={{ fontSize: "11px", color: goal.color }}>Add</span>
+              <TrendingUp size={12} color={color} strokeWidth={2} />
+              <span style={{ fontSize: "11px", color: color }}>Add</span>
             </motion.button>
           </div>
         ) : (
@@ -146,11 +140,42 @@ function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
   );
 }
 
-function NewGoalModal({ onClose }: { onClose: () => void }) {
+function NewGoalModal({ onClose, onCreateGoal }: { onClose: () => void; onCreateGoal: (goalData: any) => void }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [targetDate, setTargetDate] = useState("");
+  const [category, setCategory] = useState("savings");
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
+  const [loading, setLoading] = useState(false);
+  
   const emojis = ["🏠", "✈️", "💻", "📱", "🎓", "💍", "🛡️", "🚗", "🎮", "💰"];
   const [selEmoji, setSelEmoji] = useState("🎯");
+
+  const handleCreate = async () => {
+    if (!name.trim() || !amount || !targetDate) return;
+    
+    setLoading(true);
+    try {
+      await onCreateGoal({
+        name: name.trim(),
+        targetAmount: parseFloat(amount),
+        targetDate,
+        category,
+        priority,
+        emoji: selEmoji,
+      });
+      onClose();
+    } catch (error) {
+      console.error('Error creating goal:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Set default target date to 1 year from now
+  const defaultDate = new Date();
+  defaultDate.setFullYear(defaultDate.getFullYear() + 1);
+  const defaultDateString = defaultDate.toISOString().split('T')[0];
 
   return (
     <motion.div
@@ -208,7 +233,7 @@ function NewGoalModal({ onClose }: { onClose: () => void }) {
           />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4">
           <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "8px" }}>TARGET AMOUNT</p>
           <div className="flex items-center gap-2 px-4 py-3 rounded-2xl" style={{ background: "#181820", border: "1px solid rgba(255,255,255,0.07)" }}>
             <span style={{ fontSize: "18px", color: "rgba(255,255,255,0.3)" }}>₹</span>
@@ -223,15 +248,56 @@ function NewGoalModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        <div className="mb-4">
+          <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "8px" }}>TARGET DATE</p>
+          <input
+            type="date"
+            value={targetDate || defaultDateString}
+            onChange={(e) => setTargetDate(e.target.value)}
+            className="w-full px-4 py-3 rounded-2xl outline-none"
+            style={{ background: "#181820", border: "1px solid rgba(255,255,255,0.07)", fontSize: "14px", color: "#fff" }}
+          />
+        </div>
+
+        <div className="mb-6">
+          <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "8px" }}>PRIORITY</p>
+          <div className="flex gap-2">
+            {(["low", "medium", "high"] as const).map((p) => (
+              <motion.button
+                key={p}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setPriority(p)}
+                className="flex-1 py-2 rounded-xl capitalize"
+                style={{
+                  background: priority === p ? "rgba(0,214,143,0.1)" : "rgba(255,255,255,0.04)",
+                  border: priority === p ? "1px solid rgba(0,214,143,0.2)" : "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <span style={{ fontSize: "12px", color: priority === p ? "#00D68F" : "rgba(255,255,255,0.4)" }}>
+                  {p}
+                </span>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+
         <motion.button
           whileTap={{ scale: 0.97 }}
-          onClick={onClose}
-          className="w-full py-4 rounded-2xl"
-          style={{ background: name && amount ? "#00D68F" : "rgba(255,255,255,0.06)" }}
+          onClick={handleCreate}
+          disabled={loading || !name.trim() || !amount || !targetDate}
+          className="w-full py-4 rounded-2xl flex items-center justify-center gap-2"
+          style={{ 
+            background: (name.trim() && amount && targetDate && !loading) ? "#00D68F" : "rgba(255,255,255,0.06)",
+            opacity: loading ? 0.7 : 1
+          }}
         >
-          <span style={{ fontSize: "15px", color: name && amount ? "#000" : "rgba(255,255,255,0.3)", fontWeight: 500 }}>
-            Create Goal
-          </span>
+          {loading ? (
+            <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#000", borderTopColor: "transparent" }} />
+          ) : (
+            <span style={{ fontSize: "15px", color: (name.trim() && amount && targetDate) ? "#000" : "rgba(255,255,255,0.3)", fontWeight: 500 }}>
+              Create Goal
+            </span>
+          )}
         </motion.button>
       </motion.div>
     </motion.div>
@@ -240,7 +306,7 @@ function NewGoalModal({ onClose }: { onClose: () => void }) {
 
 export function GoalsScreen() {
   const { user } = useUser();
-  const [goals] = useState<Goal[]>(initialGoals);
+  const { goals, loading, error, createGoal } = useGoals();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [showNewGoal, setShowNewGoal] = useState(false);
 
@@ -250,9 +316,28 @@ export function GoalsScreen() {
     filter === "all" ? true : filter === "active" ? g.status === "active" : g.status === "completed"
   );
 
-  const totalSaved = goals.reduce((s, g) => s + g.current, 0);
-  const totalTarget = goals.reduce((s, g) => s + g.target, 0);
-  const overallPct = Math.round((totalSaved / totalTarget) * 100);
+  const totalSaved = goals.reduce((s, g) => s + g.currentAmount, 0);
+  const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
+  const overallPct = totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0;
+
+  const handleCreateGoal = async (goalData: any) => {
+    try {
+      await createGoal(goalData);
+    } catch (error) {
+      console.error('Failed to create goal:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="px-5 md:px-8 pt-5 md:pt-6 pb-4 flex items-center justify-center" style={{ color: "#fff", minHeight: "400px" }}>
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{ borderColor: "#00D68F", borderTopColor: "transparent" }} />
+          <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.6)" }}>Loading your goals...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-5 md:px-8 pt-5 md:pt-6 pb-4" style={{ color: "#fff" }}>
@@ -291,7 +376,7 @@ export function GoalsScreen() {
               ₹{totalSaved.toLocaleString("en-IN")}
             </p>
             <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
-              of ₹{totalTarget.toLocaleString("en-IN")} target · {overallPct}% done
+              {totalTarget > 0 ? `of ₹${totalTarget.toLocaleString("en-IN")} target · ${overallPct}% done` : "No targets set yet"}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -306,15 +391,17 @@ export function GoalsScreen() {
             </div>
           </div>
         </div>
-        <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-          <motion.div
-            className="h-full rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${overallPct}%` }}
-            transition={{ duration: 1.3, delay: 0.3, ease: "easeOut" }}
-            style={{ background: "linear-gradient(90deg, #00D68F, #00b377)" }}
-          />
-        </div>
+        {totalTarget > 0 && (
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <motion.div
+              className="h-full rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${overallPct}%` }}
+              transition={{ duration: 1.3, delay: 0.3, ease: "easeOut" }}
+              style={{ background: "linear-gradient(90deg, #00D68F, #00b377)" }}
+            />
+          </div>
+        )}
       </motion.div>
 
       {/* Filter tabs */}
@@ -343,17 +430,37 @@ export function GoalsScreen() {
       </motion.div>
 
       {/* Goal cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
-        <AnimatePresence mode="popLayout">
-          {filtered.map((goal) => (
-            <GoalCard key={goal.id} goal={goal} userName={firstName} />
-          ))}
-        </AnimatePresence>
-      </div>
+      {goals.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(0,214,143,0.1)", border: "1px solid rgba(0,214,143,0.2)" }}>
+            <Target size={24} color="#00D68F" strokeWidth={1.5} />
+          </div>
+          <p style={{ fontSize: "16px", color: "#fff", marginBottom: "8px" }}>No goals yet</p>
+          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)", marginBottom: "20px" }}>
+            Create your first savings goal to start tracking your progress
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowNewGoal(true)}
+            className="px-6 py-3 rounded-xl"
+            style={{ background: "#00D68F", color: "#000" }}
+          >
+            <span style={{ fontSize: "14px", fontWeight: 500 }}>Create First Goal</span>
+          </motion.button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
+          <AnimatePresence mode="popLayout">
+            {filtered.map((goal) => (
+              <GoalCard key={goal.id} goal={goal} userName={firstName} />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* New Goal modal */}
       <AnimatePresence>
-        {showNewGoal && <NewGoalModal onClose={() => setShowNewGoal(false)} />}
+        {showNewGoal && <NewGoalModal onClose={() => setShowNewGoal(false)} onCreateGoal={handleCreateGoal} />}
       </AnimatePresence>
     </div>
   );

@@ -13,22 +13,8 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-
-// Mock user financial data - in real app this would come from API
-const USER_DATA = {
-  currentBalance: 124350,
-  monthlyIncome: 85000,
-  fixedExpenses: 32000, // rent, utilities, subscriptions
-  averageDailySpending: 1200,
-  daysLeftInMonth: 12,
-  spendingHistory: [
-    { day: 1, amount: 800 },
-    { day: 2, amount: 1500 },
-    { day: 3, amount: 900 },
-    { day: 4, amount: 2100 }, // high spending day
-    { day: 5, amount: 1100 },
-  ]
-};
+import { useFinancialData } from "../../../hooks/useFinancialData";
+import { useTransactions } from "../../../hooks/useTransactions";
 
 interface AffordabilityResult {
   canAfford: boolean;
@@ -41,22 +27,49 @@ interface AffordabilityResult {
   categoryInsight?: string;
 }
 
-// Smart affordability engine with advanced logic
+// Smart affordability engine with advanced logic using real user data
 function calculateAffordability(
-  price: number, 
+  price: number,
+  financialData: any,
+  transactions: any[],
   currentHour: number = new Date().getHours(),
   category?: string
 ): AffordabilityResult {
-  const { currentBalance, fixedExpenses, averageDailySpending, daysLeftInMonth, spendingHistory } = USER_DATA;
+  const { balance, monthlyIncome, currentExpenses } = financialData;
   
-  // Calculate available balance after fixed expenses
-  const availableBalance = currentBalance - fixedExpenses;
+  // Ensure transactions is always an array
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  
+  // Calculate available balance after essential expenses
+  const availableBalance = balance - (currentExpenses * 0.7); // Keep 70% buffer for essentials
+  
+  // Calculate daily spending from recent transactions
+  const recentTransactions = safeTransactions.slice(0, 10);
+  const dailySpending = recentTransactions.length > 0 
+    ? recentTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0) / Math.min(recentTransactions.length, 7)
+    : currentExpenses / 30;
   
   // Analyze spending pattern volatility
-  const spendingVariance = spendingHistory.reduce((acc, day) => {
-    return acc + Math.pow(day.amount - averageDailySpending, 2);
-  }, 0) / spendingHistory.length;
-  const volatilityMultiplier = spendingVariance > 500000 ? 1.2 : 1.0; // High variance = higher risk
+  const spendingAmounts = recentTransactions.map(tx => Math.abs(tx.amount));
+  const avgSpending = spendingAmounts.reduce((sum, amt) => sum + amt, 0) / Math.max(spendingAmounts.length, 1);
+  const spendingVariance = spendingAmounts.reduce((acc, amt) => {
+    return acc + Math.pow(amt - avgSpending, 2);
+  }, 0) / Math.max(spendingAmounts.length, 1);
+  const volatilityMultiplier = spendingVariance > 500000 ? 1.2 : 1.0;
+  
+  const daysLeftInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate();
+  
+  // Category-based risk assessment
+  // Weekend/weekday spending patterns (weekends typically higher)
+  const isWeekend = new Date().getDay() === 0 || new Date().getDay() === 6;
+  const weekendMultiplier = isWeekend ? 1.15 : 1.0;
+  
+  // Late night spending multiplier (22:00 - 06:00 = higher risk)
+  const timeRiskMultiplier = (currentHour >= 22 || currentHour <= 6) ? 1.3 : 1.0;
+  
+  // Impulse purchase detection (high-value items)
+  const impulseThreshold = dailySpending * 5;
+  const impulseMultiplier = price > impulseThreshold ? 1.25 : 1.0;
   
   // Category-based risk assessment
   let categoryMultiplier = 1.0;
@@ -77,23 +90,12 @@ function calculateAffordability(
     }
   }
   
-  // Weekend/weekday spending patterns (weekends typically higher)
-  const isWeekend = new Date().getDay() === 0 || new Date().getDay() === 6;
-  const weekendMultiplier = isWeekend ? 1.15 : 1.0;
-  
-  // Late night spending multiplier (22:00 - 06:00 = higher risk)
-  const timeRiskMultiplier = (currentHour >= 22 || currentHour <= 6) ? 1.3 : 1.0;
-  
-  // Impulse purchase detection (high-value items)
-  const impulseThreshold = averageDailySpending * 5;
-  const impulseMultiplier = price > impulseThreshold ? 1.25 : 1.0;
-  
   // Combined risk-adjusted price
   const totalRiskMultiplier = timeRiskMultiplier * weekendMultiplier * volatilityMultiplier * impulseMultiplier * categoryMultiplier;
   const adjustedPrice = price * totalRiskMultiplier;
   
   // Projected spending for remaining days (with risk adjustment)
-  const projectedSpending = averageDailySpending * daysLeftInMonth * volatilityMultiplier;
+  const projectedSpending = dailySpending * daysLeftInMonth * volatilityMultiplier;
   
   // Dynamic safety buffer based on spending volatility
   const baseSafetyBuffer = availableBalance * 0.2;
@@ -101,7 +103,7 @@ function calculateAffordability(
   
   // Calculate days until broke if purchase is made
   const remainingAfterPurchase = availableBalance - adjustedPrice;
-  const daysUntilBroke = Math.floor(remainingAfterPurchase / (averageDailySpending * volatilityMultiplier));
+  const daysUntilBroke = Math.floor(remainingAfterPurchase / (dailySpending * volatilityMultiplier));
   
   // Enhanced decision logic
   if (adjustedPrice > availableBalance) {
@@ -159,7 +161,7 @@ function calculateAffordability(
   }
   
   // Safe purchase
-  const monthlyBudgetUsed = ((currentBalance - remainingAfterPurchase) / currentBalance * 100).toFixed(1);
+  const monthlyBudgetUsed = ((balance - remainingAfterPurchase) / balance * 100).toFixed(1);
   
   return {
     canAfford: true,
@@ -200,6 +202,12 @@ const CATEGORY_INSIGHTS = {
 };
 
 export function AffordabilityScreen() {
+  const { balance, monthlyIncome, currentExpenses, loading: financialLoading } = useFinancialData();
+  const { transactions: rawTransactions, loading: transactionsLoading } = useTransactions(30);
+  
+  // Ensure transactions is always an array
+  const transactions = Array.isArray(rawTransactions) ? rawTransactions : [];
+  
   const [price, setPrice] = useState("");
   const [result, setResult] = useState<AffordabilityResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -207,11 +215,16 @@ export function AffordabilityScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const analyzeAffordability = (amount: number, category?: string) => {
+    if (financialLoading || transactionsLoading) {
+      return;
+    }
+    
     setIsAnalyzing(true);
     
     // Simulate AI thinking time for better UX
     setTimeout(() => {
-      const analysis = calculateAffordability(amount, new Date().getHours(), category);
+      const financialData = { balance, monthlyIncome, currentExpenses };
+      const analysis = calculateAffordability(amount, financialData, transactions, new Date().getHours(), category);
       setResult(analysis);
       setIsAnalyzing(false);
     }, 1200);
@@ -223,6 +236,18 @@ export function AffordabilityScreen() {
       analyzeAffordability(amount, selectedCategory || undefined);
     }
   };
+
+  // Show loading state while financial data is being fetched
+  if (financialLoading || transactionsLoading) {
+    return (
+      <div className="px-5 md:px-8 pt-5 md:pt-6 pb-4 flex items-center justify-center" style={{ color: "#fff", minHeight: "400px" }}>
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{ borderColor: "#7C3AED", borderTopColor: "transparent" }} />
+          <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.6)" }}>Loading your financial data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleItemSelect = (item: typeof POPULAR_ITEMS[0]) => {
     setSelectedItem(item.name);
@@ -556,7 +581,7 @@ export function AffordabilityScreen() {
                 AVAILABLE BALANCE
               </p>
               <p style={{ fontSize: "16px", color: "#00D68F" }}>
-                ₹{(USER_DATA.currentBalance - USER_DATA.fixedExpenses).toLocaleString()}
+                ₹{(balance - (currentExpenses * 0.7)).toLocaleString()}
               </p>
             </div>
             <div>
@@ -564,7 +589,7 @@ export function AffordabilityScreen() {
                 DAILY SPENDING AVG
               </p>
               <p style={{ fontSize: "16px", color: "#fff" }}>
-                ₹{USER_DATA.averageDailySpending.toLocaleString()}
+                ₹{Math.round(currentExpenses / 30).toLocaleString()}
               </p>
             </div>
             <div>
@@ -572,7 +597,7 @@ export function AffordabilityScreen() {
                 DAYS LEFT IN MONTH
               </p>
               <p style={{ fontSize: "16px", color: "#7C3AED" }}>
-                {USER_DATA.daysLeftInMonth} days
+                {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate()} days
               </p>
             </div>
             <div>
@@ -580,7 +605,7 @@ export function AffordabilityScreen() {
                 SAFETY BUFFER
               </p>
               <p style={{ fontSize: "16px", color: "#F59E0B" }}>
-                ₹{Math.round((USER_DATA.currentBalance - USER_DATA.fixedExpenses) * 0.2).toLocaleString()}
+                ₹{Math.round((balance - (currentExpenses * 0.7)) * 0.2).toLocaleString()}
               </p>
             </div>
           </div>

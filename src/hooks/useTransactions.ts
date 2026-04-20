@@ -1,9 +1,4 @@
-/**
- * Transactions Hook
- * Manages transaction data and analytics
- */
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
 interface Transaction {
@@ -15,104 +10,65 @@ interface Transaction {
   description?: string;
   merchant?: string;
   transactionDate: string;
-  isRecurring: boolean;
-  isImpulsePurchase: boolean;
   createdAt: string;
 }
 
-interface TransactionStats {
-  totalIncome: number;
-  totalExpenses: number;
-  netAmount: number;
-  transactionCount: number;
-  categoryBreakdown: Record<string, number>;
+interface UseTransactionsResult {
+  transactions: Transaction[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
 }
 
-export function useTransactions(limit = 10) {
+export function useTransactions(limit = 10): UseTransactionsResult {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [stats, setStats] = useState<TransactionStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await api.getTransactions({ limit, offset: 0 });
-      
+      console.log('🔍 Fetching transactions with limit:', limit);
+
+      const response = await api.getTransactions({ 
+        limit,
+        // Order by most recent first
+      });
+
+      console.log('📊 Transactions API response:', response);
+
       if (response.error) {
-        setError(response.error);
-        return;
+        throw new Error(response.error);
       }
 
-      if (response.data && response.data.transactions) {
-        const txns = response.data.transactions;
-        setTransactions(txns);
-        
-        // Calculate stats
-        const totalIncome = txns
-          .filter((t: Transaction) => t.type === 'income')
-          .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
-        
-        const totalExpenses = txns
-          .filter((t: Transaction) => t.type === 'expense')
-          .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
-        
-        const categoryBreakdown: Record<string, number> = {};
-        txns.forEach((t: Transaction) => {
-          if (t.type === 'expense') {
-            categoryBreakdown[t.category] = (categoryBreakdown[t.category] || 0) + t.amount;
-          }
-        });
-
-        setStats({
-          totalIncome,
-          totalExpenses,
-          netAmount: totalIncome - totalExpenses,
-          transactionCount: txns.length,
-          categoryBreakdown,
-        });
+      // Ensure we always set an array, even if response.data is undefined/null
+      const transactionData = response.data;
+      if (Array.isArray(transactionData)) {
+        console.log('✅ Setting transactions array:', transactionData.length, 'items');
+        setTransactions(transactionData);
+      } else {
+        console.warn('⚠️ API returned non-array data for transactions:', transactionData);
+        setTransactions([]);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch transactions');
+    } catch (err) {
+      console.error('❌ Error fetching transactions:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load transactions');
+      setTransactions([]); // Always ensure we have an array
     } finally {
       setLoading(false);
     }
-  }, [limit]);
-
-  const addTransaction = useCallback(async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
-    try {
-      const response = await api.createTransaction(data);
-      
-      if (response.error) {
-        setError(response.error);
-        return false;
-      }
-
-      // Refresh transactions
-      await fetchTransactions();
-      return true;
-    } catch (err: any) {
-      setError(err.message || 'Failed to add transaction');
-      return false;
-    }
-  }, [fetchTransactions]);
-
-  const refreshTransactions = useCallback(() => {
-    return fetchTransactions();
-  }, [fetchTransactions]);
+  };
 
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
+  }, [limit]);
 
   return {
     transactions,
-    stats,
     loading,
     error,
-    refreshTransactions,
-    addTransaction,
+    refetch: fetchTransactions,
   };
 }

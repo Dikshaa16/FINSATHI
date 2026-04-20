@@ -124,16 +124,20 @@ async function startServer() {
       console.log('✅ Database models synchronized.');
     }
     
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-    });
+    // Start server only if not in Vercel environment
+    if (process.env.VERCEL !== '1') {
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+      });
+    }
     
   } catch (error) {
     console.error('❌ Unable to start server:', error);
-    process.exit(1);
+    if (process.env.VERCEL !== '1') {
+      process.exit(1);
+    }
   }
 }
 
@@ -150,4 +154,8 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
+// Initialize database connection
 startServer();
+
+// Export for Vercel serverless functions
+module.exports = app;

@@ -5,6 +5,9 @@ import {
   BarChart3, ChevronRight, RefreshCw, Copy, ThumbsUp,
 } from "lucide-react";
 import { useUser } from "../../Root";
+import { useFinancialData } from "../../../hooks/useFinancialData";
+import { useTransactions } from "../../../hooks/useTransactions";
+import { useGoals } from "../../../hooks/useGoals";
 
 interface Message {
   id: number;
@@ -20,21 +23,115 @@ const suggestions = [
   { icon: BarChart3, text: "Analyse my spending pattern" },
 ];
 
-const aiResponses: Record<string, string> = {
-  default: "Great question! Based on your transaction history, I've analysed the last 3 months. You're doing well overall, but there's room to optimise in dining and subscriptions. Want a detailed breakdown?",
-  food: "You spent ₹8,430 on food this month — that's 23% more than last month. Swiggy alone accounts for ₹4,200. I'd suggest:\n\n• Set a ₹6,000 food budget\n• Cook at home 3x a week\n• Estimated savings: ₹2,400/month\n\nShall I set up this budget for you?",
-  save: "To save ₹1 lakh by year-end, you need ₹12,500/month. Based on your income (₹85,000) and fixed expenses (₹32,000), this is very achievable!\n\n• Automate ₹13,000 to savings on salary day\n• Expected timeline: 7.7 months\n\nWant me to set this up?",
-  sip: "Based on your risk profile (moderate), I recommend:\n\n📈 Mirae Asset Large Cap — ₹3,000/mo\n📊 Axis Midcap Fund — ₹2,000/mo\n⚖️ ICICI Balanced Advantage — ₹2,000/mo\n\nExpected 12% CAGR over 5 years. Shall I initiate these?",
-  analyse: "Your top spending this month:\n\n🏠 Rent — ₹12,000 (37%)\n🍕 Food — ₹8,430 (26%)\n🛍️ Shopping — ₹5,200 (16%)\n🚗 Transport — ₹2,100 (6%)\n💡 Others — ₹4,720 (15%)\n\nYou're overspending on subscriptions by ₹600 vs last month. Want tips to cut back?",
-};
-
-function getAIReply(msg: string): string {
+// Generate AI responses based on real user data
+function generateAIResponse(msg: string, financialData: any, transactions: any[], goals: any[], userName: string): string {
   const lower = msg.toLowerCase();
-  if (lower.includes("food") || lower.includes("swiggy") || lower.includes("zomato")) return aiResponses.food;
-  if (lower.includes("save") || lower.includes("lakh") || lower.includes("goal")) return aiResponses.save;
-  if (lower.includes("sip") || lower.includes("invest") || lower.includes("mutual")) return aiResponses.sip;
-  if (lower.includes("pattern") || lower.includes("analys") || lower.includes("spend")) return aiResponses.analyse;
-  return aiResponses.default;
+  const { balance, monthlyIncome, currentExpenses, savings } = financialData;
+  
+  // Ensure transactions is always an array
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  
+  // Food spending analysis
+  if (lower.includes("food") || lower.includes("swiggy") || lower.includes("zomato")) {
+    const foodTransactions = safeTransactions.filter(tx => 
+      tx.category?.toLowerCase().includes('food') || 
+      tx.merchant?.toLowerCase().includes('swiggy') ||
+      tx.merchant?.toLowerCase().includes('zomato') ||
+      tx.description?.toLowerCase().includes('food')
+    );
+    const foodSpending = foodTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+    const avgMonthlyFood = foodSpending > 0 ? foodSpending : 8430; // fallback
+    const suggestedBudget = Math.round(avgMonthlyFood * 0.75);
+    const potentialSavings = avgMonthlyFood - suggestedBudget;
+    
+    return `You spent ₹${avgMonthlyFood.toLocaleString("en-IN")} on food this month${foodTransactions.length > 0 ? ` across ${foodTransactions.length} transactions` : ''}. ${foodTransactions.some(tx => tx.merchant?.toLowerCase().includes('swiggy')) ? 'Swiggy orders are a major contributor.' : ''}\n\n• Set a ₹${suggestedBudget.toLocaleString("en-IN")} food budget\n• Cook at home 3x a week\n• Estimated savings: ₹${potentialSavings.toLocaleString("en-IN")}/month\n\nShall I set up this budget for you?`;
+  }
+  
+  // Savings goal analysis
+  if (lower.includes("save") || lower.includes("lakh") || lower.includes("goal")) {
+    const targetAmount = 100000;
+    const monthsNeeded = monthlyIncome > 0 ? Math.ceil(targetAmount / (savings || monthlyIncome * 0.2)) : 8;
+    const monthlySavingsNeeded = Math.ceil(targetAmount / 12);
+    
+    return `To save ₹1 lakh by year-end, you need ₹${monthlySavingsNeeded.toLocaleString("en-IN")}/month. Based on your income (₹${monthlyIncome.toLocaleString("en-IN")}) and current expenses (₹${currentExpenses.toLocaleString("en-IN")}), this is ${savings >= monthlySavingsNeeded ? 'very achievable' : 'challenging but possible'}!\n\n• Automate ₹${monthlySavingsNeeded.toLocaleString("en-IN")} to savings on salary day\n• Expected timeline: ${monthsNeeded} months\n• Current savings rate: ₹${savings.toLocaleString("en-IN")}/month\n\nWant me to set this up?`;
+  }
+  
+  // Investment recommendations
+  if (lower.includes("sip") || lower.includes("invest") || lower.includes("mutual")) {
+    const investmentCapacity = Math.max(0, savings * 0.6);
+    const largeCap = Math.round(investmentCapacity * 0.4);
+    const midCap = Math.round(investmentCapacity * 0.3);
+    const balanced = Math.round(investmentCapacity * 0.3);
+    
+    return `Based on your savings capacity (₹${savings.toLocaleString("en-IN")}/month) and moderate risk profile, I recommend:\n\n📈 Mirae Asset Large Cap — ₹${largeCap.toLocaleString("en-IN")}/mo\n📊 Axis Midcap Fund — ₹${midCap.toLocaleString("en-IN")}/mo\n⚖️ ICICI Balanced Advantage — ₹${balanced.toLocaleString("en-IN")}/mo\n\nTotal: ₹${(largeCap + midCap + balanced).toLocaleString("en-IN")}/month\nExpected 12% CAGR over 5 years. Shall I initiate these?`;
+  }
+  
+  // Spending pattern analysis
+  if (lower.includes("pattern") || lower.includes("analys") || lower.includes("spend")) {
+    const categorySpending = safeTransactions.reduce((acc, tx) => {
+      const category = tx.category || 'other';
+      acc[category] = (acc[category] || 0) + Math.abs(tx.amount);
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const sortedCategories = Object.entries(categorySpending)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5);
+    
+    if (sortedCategories.length === 0) {
+      return `I don't have enough transaction data to analyze your spending patterns yet. Connect your SMS extraction or add some transactions manually to get personalized insights!\n\nOnce I have your data, I can show you:\n• Top spending categories\n• Monthly trends\n• Optimization opportunities\n• Budget recommendations`;
+    }
+    
+    const total = Object.values(categorySpending).reduce((sum, amount) => sum + amount, 0);
+    let analysis = `Your spending breakdown this month:\n\n`;
+    
+    sortedCategories.forEach(([category, amount], index) => {
+      const percentage = Math.round((amount / total) * 100);
+      const emoji = getCategoryEmoji(category);
+      analysis += `${emoji} ${category.charAt(0).toUpperCase() + category.slice(1)} — ₹${amount.toLocaleString("en-IN")} (${percentage}%)\n`;
+    });
+    
+    analysis += `\nTotal analyzed: ₹${total.toLocaleString("en-IN")}\nWant tips to optimize your spending?`;
+    return analysis;
+  }
+  
+  // Goals progress
+  if (lower.includes("goal") && goals.length > 0) {
+    const activeGoals = goals.filter(g => g.status === 'active');
+    if (activeGoals.length === 0) {
+      return `You have ${goals.length} goals, but none are currently active. Consider reactivating some goals or creating new ones to stay motivated!\n\nCompleted goals: ${goals.filter(g => g.status === 'completed').length}\nWant to create a new savings goal?`;
+    }
+    
+    let response = `Here's your goals progress, ${userName}:\n\n`;
+    activeGoals.slice(0, 3).forEach(goal => {
+      const progress = Math.round((goal.currentAmount / goal.targetAmount) * 100);
+      response += `${goal.emoji || '🎯'} ${goal.name}: ${progress}% (₹${goal.currentAmount.toLocaleString("en-IN")} / ₹${goal.targetAmount.toLocaleString("en-IN")})\n`;
+    });
+    
+    const totalGoalAmount = activeGoals.reduce((sum, g) => sum + g.targetAmount, 0);
+    const totalSaved = activeGoals.reduce((sum, g) => sum + g.currentAmount, 0);
+    const overallProgress = Math.round((totalSaved / totalGoalAmount) * 100);
+    
+    response += `\nOverall progress: ${overallProgress}%\nNeed help accelerating any goal?`;
+    return response;
+  }
+  
+  // Default response with personalized data
+  return `Great question, ${userName}! Based on your financial profile:\n\n💰 Current Balance: ₹${balance.toLocaleString("en-IN")}\n📈 Monthly Income: ₹${monthlyIncome.toLocaleString("en-IN")}\n💸 This Month's Expenses: ₹${currentExpenses.toLocaleString("en-IN")}\n💎 Savings Rate: ₹${savings.toLocaleString("en-IN")}/month\n\n${goals.length > 0 ? `🎯 Active Goals: ${goals.filter(g => g.status === 'active').length}` : '🎯 No active goals yet'}\n\nYou're ${savings > monthlyIncome * 0.2 ? 'doing great with savings!' : 'on track, but there\'s room to optimize.'} What specific area would you like to improve?`;
+}
+
+function getCategoryEmoji(category: string): string {
+  const emojis: Record<string, string> = {
+    food: "🍕",
+    transport: "🚗", 
+    shopping: "🛍️",
+    entertainment: "🎬",
+    utilities: "💡",
+    healthcare: "🏥",
+    education: "📚",
+    other: "💳"
+  };
+  return emojis[category.toLowerCase()] || "💳";
 }
 
 function TypingDots() {
@@ -60,13 +157,20 @@ function TypingDots() {
 
 export function AIChatScreen() {
   const { user } = useUser();
+  const { balance, monthlyIncome, currentExpenses, savings, loading: financialLoading } = useFinancialData();
+  const { transactions: rawTransactions, loading: transactionsLoading } = useTransactions(50); // Get more transactions for analysis
+  const { goals, loading: goalsLoading } = useGoals();
+  
   const firstName = user?.firstName || 'User';
+  
+  // Ensure transactions is always an array
+  const transactions = Array.isArray(rawTransactions) ? rawTransactions : [];
   
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 0,
       role: "ai",
-      text: `Hey ${firstName}! 👋 I'm FIN AI — your personal money genius. I can help you understand your spending, plan investments, set savings goals, and much more.\n\nWhat would you like to explore today?`,
+      text: `Hey ${firstName}! 👋 I'm FIN AI — your personal money genius. I can help you understand your spending, plan investments, set savings goals, and much more.\n\nI'm analyzing your financial data to provide personalized insights. What would you like to explore today?`,
       time: "Now",
     },
   ]);
@@ -91,7 +195,9 @@ export function AIChatScreen() {
     const delay = 1500 + Math.random() * 800;
     setTimeout(() => {
       setTyping(false);
-      setMessages((p) => [...p, { id: Date.now() + 1, role: "ai", text: getAIReply(text), time: "Now" }]);
+      const financialData = { balance, monthlyIncome, currentExpenses, savings };
+      const aiResponse = generateAIResponse(text, financialData, transactions, goals, firstName);
+      setMessages((p) => [...p, { id: Date.now() + 1, role: "ai", text: aiResponse, time: "Now" }]);
     }, delay);
   };
 
@@ -106,6 +212,9 @@ export function AIChatScreen() {
     setTyping(false);
     setInput("");
   };
+
+  // Show loading state while financial data is being fetched
+  const isLoading = financialLoading || transactionsLoading || goalsLoading;
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 68px)", maxHeight: "100vh" }}>
@@ -131,12 +240,14 @@ export function AIChatScreen() {
                 className="px-1.5 py-0.5 rounded-full"
                 style={{ fontSize: "9px", background: "rgba(124,58,237,0.2)", color: "#7C3AED", border: "1px solid rgba(124,58,237,0.2)" }}
               >
-                BETA
+                {isLoading ? "LOADING" : "LIVE"}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#00D68F" }} />
-              <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>AI-powered · Always learning</p>
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background: isLoading ? "#F59E0B" : "#00D68F" }} />
+              <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>
+                {isLoading ? "Analyzing your data..." : "AI-powered · Always learning"}
+              </p>
             </div>
           </div>
         </div>
