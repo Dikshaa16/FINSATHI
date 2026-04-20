@@ -1,11 +1,63 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet } from "react-router";
 import { DesktopSidebar } from "./components/Layout/DesktopSidebar";
 import { MobileBottomNav } from "./components/Layout/MobileBottomNav";
 import { AddTransactionModal } from "./components/AddTransactionModal";
+import { AuthScreen } from "./components/Auth/AuthScreen";
+import { api } from "../services/api";
 
 export function Root() {
   const [showAdd, setShowAdd] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkAuth = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        // Verify token is still valid
+        const response = await api.verifyToken();
+        if (response.data) {
+          setIsAuthenticated(true);
+        } else {
+          localStorage.removeItem('auth_token');
+        }
+      }
+      setIsLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  const handleAuthSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    api.clearToken();
+    setIsAuthenticated(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "#0B0B0F" }}
+      >
+        <div className="text-center">
+          <div
+            className="inline-block w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mb-4"
+            style={{ borderColor: "#00D68F", borderTopColor: "transparent" }}
+          />
+          <p style={{ color: "rgba(255, 255, 255, 0.6)" }}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+  }
 
   return (
     <div
@@ -14,7 +66,7 @@ export function Root() {
     >
       {/* Desktop Sidebar — hidden below md */}
       <div className="hidden md:block">
-        <DesktopSidebar onAdd={() => setShowAdd(true)} />
+        <DesktopSidebar onAdd={() => setShowAdd(true)} onLogout={handleLogout} />
       </div>
 
       {/* Main Content */}

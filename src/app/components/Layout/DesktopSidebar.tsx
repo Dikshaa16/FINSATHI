@@ -11,9 +11,10 @@ const navItems = [
 
 interface Props {
   onAdd: () => void;
+  onLogout?: () => void;
 }
 
-export function DesktopSidebar({ onAdd }: Props) {
+export function DesktopSidebar({ onAdd, onLogout }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -121,29 +122,59 @@ export function DesktopSidebar({ onAdd }: Props) {
       </nav>
 
       {/* Bottom profile */}
-      <div
-        className="px-4 py-4 mx-3 mb-4 rounded-2xl"
-        style={{
-          background: "#181820",
-          border: "1px solid rgba(255,255,255,0.05)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <img
-            src="https://images.unsplash.com/photo-1751818397262-040cddef4390?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGluZGlhbiUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwZGFyayUyMG1pbmltYWx8ZW58MXx8fHwxNzc2NTM5MTc0fDA&ixlib=rb-4.1.0&q=80&w=1080"
-            alt="avatar"
-            className="w-8 h-8 rounded-xl object-cover flex-shrink-0"
-            style={{ border: "1.5px solid rgba(0,214,143,0.3)" }}
-          />
-          <div className="flex-1 min-w-0">
-            <p style={{ fontSize: "12px", color: "#fff" }}>Aryan Sharma</p>
-            <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>PRO Member</p>
-          </div>
-          <div
-            className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(0,214,143,0.15)" }}
+      <div className="px-3 mb-4 space-y-2">
+        {onLogout && (
+          <motion.button
+            onClick={onLogout}
+            whileTap={{ scale: 0.97 }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl"
+            style={{
+              background: "rgba(239, 68, 68, 0.1)",
+              border: "1px solid rgba(239, 68, 68, 0.15)",
+            }}
           >
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#00D68F" }} />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#EF4444"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span style={{ fontSize: "13px", color: "#EF4444" }}>Logout</span>
+          </motion.button>
+        )}
+        
+        <div
+          className="px-4 py-4 rounded-2xl"
+          style={{
+            background: "#181820",
+            border: "1px solid rgba(255,255,255,0.05)",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <img
+              src="https://images.unsplash.com/photo-1751818397262-040cddef4390?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGluZGlhbiUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwZGFyayUyMG1pbmltYWx8ZW58MXx8fHwxNzc2NTM5MTc0fDA&ixlib=rb-4.1.0&q=80&w=1080"
+              alt="avatar"
+              className="w-8 h-8 rounded-xl object-cover flex-shrink-0"
+              style={{ border: "1.5px solid rgba(0,214,143,0.3)" }}
+            />
+            <div className="flex-1 min-w-0">
+              <p style={{ fontSize: "12px", color: "#fff" }}>Aryan Sharma</p>
+              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>PRO Member</p>
+            </div>
+            <div
+              className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: "rgba(0,214,143,0.15)" }}
+            >
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#00D68F" }} />
+            </div>
           </div>
         </div>
       </div>
