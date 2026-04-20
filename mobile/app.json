@@ -23,7 +23,9 @@
       },
       "package": "com.fintech.smsextractor",
       "permissions": [
-        "INTERNET"
+        "INTERNET",
+        "READ_SMS",
+        "RECEIVE_SMS"
       ],
       "edgeToEdgeEnabled": true
     },
@@ -31,7 +33,10 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": "http://localhost:3001/api"
+      "apiUrl": "http://localhost:3001/api",
+      "eas": {
+        "projectId": "12fec1af-26df-4dfa-ba05-649e441bde18"
+      }
     }
   }
 }

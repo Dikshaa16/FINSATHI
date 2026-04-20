@@ -7,8 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Update this to your backend URL
 // For local development: use your computer's IP address (not localhost)
-// Example: http://192.168.1.100:3001/api
-const API_BASE_URL = 'http://localhost:3001/api';
+// IMPORTANT: Change this IP if your computer's IP changes
+const API_BASE_URL = 'http://10.107.61.226:3001/api';
 
 class ApiService {
   constructor() {
@@ -21,7 +21,8 @@ class ApiService {
     try {
       await AsyncStorage.setItem('auth_token', token);
     } catch (error) {
-      console.error('Error saving token:', error);
+      console.warn('Could not save token to storage:', error.message);
+      // Token is still set in memory, so login will work for this session
     }
   }
 
@@ -30,7 +31,7 @@ class ApiService {
     try {
       await AsyncStorage.removeItem('auth_token');
     } catch (error) {
-      console.error('Error clearing token:', error);
+      console.warn('Could not clear token from storage:', error.message);
     }
   }
 
@@ -51,11 +52,19 @@ class ApiService {
    */
   async login(email, password) {
     try {
+      console.log('API Service - Login attempt:', { 
+        email, 
+        password: password.length + ' chars',
+        url: `${this.baseURL}/auth/login`
+      });
+      
       const response = await axios.post(
         `${this.baseURL}/auth/login`,
         { email, password },
         { headers: this.getHeaders() }
       );
+
+      console.log('API Service - Login response:', response.status, response.data);
 
       if (response.data.token) {
         await this.setToken(response.data.token);
@@ -64,6 +73,11 @@ class ApiService {
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Login error:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
       return {
         success: false,
         error: error.response?.data?.error || 'Login failed'
@@ -204,10 +218,19 @@ class ApiService {
    */
   async testConnection() {
     try {
-      const response = await axios.get(`${this.baseURL}/health`);
+      // Health endpoint is at /health, not /api/health
+      const healthUrl = this.baseURL.replace('/api', '/health');
+      console.log('Testing connection to:', healthUrl);
+      const response = await axios.get(healthUrl);
+      console.log('Connection test successful:', response.data);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Connection test error:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
       return {
         success: false,
         error: 'Cannot connect to backend. Check API_BASE_URL in apiService.js'

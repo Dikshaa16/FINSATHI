@@ -9,6 +9,8 @@ import { FutureSimulationScreen } from "./components/screens/FutureSimulationScr
 import { AutoFlowScreen } from "./components/screens/AutoFlowScreen";
 import { PersonalityScreen } from "./components/screens/PersonalityScreen";
 import { SMSSimulatorScreen } from "./components/screens/SMSSimulatorScreen";
+import { SMSTransactionsScreen } from "./components/screens/SMSTransactionsScreen";
+import { ProfileScreen } from "./components/screens/ProfileScreen";
 
 export const router = createBrowserRouter([
   {
@@ -24,6 +26,8 @@ export const router = createBrowserRouter([
       { path: "auto-flow", Component: AutoFlowScreen },
       { path: "personality", Component: PersonalityScreen },
       { path: "sms-simulator", Component: SMSSimulatorScreen },
+      { path: "sms-transactions", Component: SMSTransactionsScreen },
+      { path: "profile", Component: ProfileScreen },
     ],
   },
 ]);

@@ -12,7 +12,7 @@ const intelligenceEngine = new IntelligenceEngine();
 router.post('/process', authenticateToken, async (req, res) => {
   try {
     const { smsMessages } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId; // Fixed: was req.user.id
     
     if (!smsMessages || !Array.isArray(smsMessages)) {
       return res.status(400).json({ 
@@ -89,7 +89,7 @@ router.post('/process', authenticateToken, async (req, res) => {
 router.post('/single', authenticateToken, async (req, res) => {
   try {
     const { message, timestamp, sender } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId; // Fixed: was req.user.id
     
     if (!message) {
       return res.status(400).json({ 
@@ -145,7 +145,7 @@ router.post('/single', authenticateToken, async (req, res) => {
       isFinancial: true,
       transaction,
       affordabilityAlert,
-      confidence: transactionData.confidence
+      confidence: transactionData.confidence || 0.8 // Use SMS processor confidence or default
     });
     
   } catch (error) {
@@ -160,7 +160,7 @@ router.post('/single', authenticateToken, async (req, res) => {
 // GET /api/sms/patterns - Get spending patterns analysis
 router.get('/patterns', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId; // Fixed: was req.user.id
     const { days = 30 } = req.query;
     
     // Get comprehensive spending analysis
@@ -224,20 +224,20 @@ router.post('/test-parsing', authenticateToken, async (req, res) => {
 // GET /api/sms/stats - Get SMS processing statistics
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId; // Fixed: was req.user.id, should be req.user.userId
     
-    // Get transaction statistics
+    // Get transaction statistics (remove non-existent columns)
     const transactions = await Transaction.findAll({
-      where: { userId, source: 'sms' },
-      attributes: ['type', 'category', 'amount', 'transactionDate', 'confidence']
+      where: { userId }, // Remove source filter as it doesn't exist in schema
+      attributes: ['type', 'category', 'amount', 'transactionDate', 'merchant', 'description']
     });
     
     const stats = {
       totalTransactions: transactions.length,
       totalExpenses: transactions.filter(tx => tx.type === 'expense').length,
       totalIncome: transactions.filter(tx => tx.type === 'income').length,
-      totalAmount: transactions.reduce((sum, tx) => sum + tx.amount, 0),
-      averageConfidence: transactions.reduce((sum, tx) => sum + tx.confidence, 0) / Math.max(1, transactions.length),
+      totalAmount: transactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0),
+      // Remove averageConfidence as confidence column doesn't exist
       categoryBreakdown: {},
       monthlyBreakdown: {}
     };

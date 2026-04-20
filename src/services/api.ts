@@ -1,4 +1,6 @@
 // API service for backend communication
+import { authService } from './authService';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 interface ApiResponse<T = any> {
@@ -9,11 +11,9 @@ interface ApiResponse<T = any> {
 
 class ApiService {
   private baseURL: string;
-  private token: string | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    this.token = localStorage.getItem('auth_token');
   }
 
   private async request<T>(
@@ -22,10 +22,13 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     
+    // Get token from auth service
+    const token = authService.getToken();
+    
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
@@ -33,6 +36,15 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
+      
+      // Handle 401 Unauthorized - token expired or invalid
+      if (response.status === 401) {
+        console.log('🔒 Unauthorized - clearing auth data');
+        authService.clearAuth();
+        window.location.reload(); // Force re-login
+        return { error: 'Session expired. Please login again.' };
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -46,17 +58,6 @@ class ApiService {
     }
   }
 
-  // Auth methods
-  setToken(token: string) {
-    this.token = token;
-    localStorage.setItem('auth_token', token);
-  }
-
-  clearToken() {
-    this.token = null;
-    localStorage.removeItem('auth_token');
-  }
-
   // Authentication
   async register(userData: {
     email: string;
@@ -66,10 +67,18 @@ class ApiService {
     phoneNumber?: string;
     dateOfBirth?: string;
   }) {
-    return this.request('/auth/register', {
+    const response = await this.request('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
+
+    // Save auth data on successful registration
+    if (response.data?.token && response.data?.user) {
+      authService.setAuth(response.data.token, response.data.user);
+      console.log('✅ Registration successful - auth data saved');
+    }
+
+    return response;
   }
 
   async login(credentials: { email: string; password: string }) {
@@ -77,11 +86,13 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
-    
-    if (response.data?.token) {
-      this.setToken(response.data.token);
+
+    // Save auth data on successful login
+    if (response.data?.token && response.data?.user) {
+      authService.setAuth(response.data.token, response.data.user);
+      console.log('✅ Login successful - auth data saved');
     }
-    
+
     return response;
   }
 
@@ -89,16 +100,36 @@ class ApiService {
     return this.request('/auth/verify');
   }
 
+  logout() {
+    authService.clearAuth();
+    console.log('✅ Logged out successfully');
+  }
+
   // User profile
   async getUserProfile() {
-    return this.request('/users/profile');
+    const response = await this.request('/users/profile');
+    
+    // Update stored user data if successful
+    if (response.data) {
+      authService.updateUser(response.data);
+    }
+    
+    return response;
   }
 
   async updateUserProfile(profileData: any) {
-    return this.request('/users/profile', {
+    const response = await this.request('/users/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData),
     });
+    
+    // Update stored user data if successful
+    if (response.data?.user) {
+      authService.updateUser(response.data.user);
+      console.log('✅ Profile updated - user data refreshed');
+    }
+    
+    return response;
   }
 
   async updateFinancialProfile(financialData: any) {

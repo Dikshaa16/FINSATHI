@@ -30,14 +30,11 @@ async function seedDemoUser() {
       return;
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash('Demo123!', 10);
-
-    // Create demo user
+    // Create demo user (password will be hashed by User model's beforeCreate hook)
     const user = await User.create({
       id: uuidv4(),
       email: 'demo@finsathi.com',
-      password: hashedPassword,
+      password: 'Demo123!',
       firstName: 'Demo',
       lastName: 'User',
       phoneNumber: '+91 9876543210',

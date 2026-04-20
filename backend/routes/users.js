@@ -29,23 +29,41 @@ router.get('/profile', authenticateToken, async (req, res) => {
 // Update user profile
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const { firstName, lastName, phoneNumber, dateOfBirth } = req.body;
+    const { firstName, lastName, phoneNumber, dateOfBirth, profilePicture } = req.body;
+    
+    console.log('Profile update request:', {
+      userId: req.user.userId,
+      hasProfilePicture: !!profilePicture,
+      profilePictureLength: profilePicture ? profilePicture.length : 0
+    });
     
     const user = await User.findByPk(req.user.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    await user.update({
-      firstName,
-      lastName,
-      phoneNumber,
-      dateOfBirth
+    const updateData = {};
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
+    if (profilePicture !== undefined) updateData.profilePicture = profilePicture;
+    
+    await user.update(updateData);
+    
+    console.log('Profile updated successfully');
+    
+    // Return updated user with financial profile
+    const updatedUser = await User.findByPk(req.user.userId, {
+      include: [{
+        model: FinancialProfile,
+        as: 'financialProfile'
+      }]
     });
     
     res.json({
       message: 'Profile updated successfully',
-      user
+      user: updatedUser
     });
     
   } catch (error) {

@@ -1,12 +1,14 @@
 import { useLocation, useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { Home, BarChart2, Target, MessageSquare, Plus, Sparkles } from "lucide-react";
+import { Home, BarChart2, Target, MessageSquare, Plus, Sparkles, Smartphone } from "lucide-react";
+import { useUser } from "../../Root";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: BarChart2, label: "Insights", path: "/insights" },
   { icon: Target, label: "Goals", path: "/goals" },
   { icon: MessageSquare, label: "AI Chat", path: "/ai" },
+  { icon: Smartphone, label: "SMS Transactions", path: "/sms-transactions" },
 ];
 
 interface Props {
@@ -17,6 +19,10 @@ interface Props {
 export function DesktopSidebar({ onAdd, onLogout }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useUser();
+
+  const fullName = user ? `${user.firstName} ${user.lastName}` : 'User';
+  const avatar = user?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=00D68F&color=fff&size=128`;
 
   return (
     <div
@@ -151,32 +157,44 @@ export function DesktopSidebar({ onAdd, onLogout }: Props) {
           </motion.button>
         )}
         
-        <div
-          className="px-4 py-4 rounded-2xl"
+        <motion.div
+          className="px-4 py-4 rounded-2xl cursor-pointer transition-all"
           style={{
             background: "#181820",
             border: "1px solid rgba(255,255,255,0.05)",
           }}
+          onClick={() => navigate('/profile')}
+          whileHover={{ 
+            background: "#1f1f28",
+            borderColor: "rgba(0,214,143,0.15)"
+          }}
+          whileTap={{ scale: 0.98 }}
         >
           <div className="flex items-center gap-3">
             <img
-              src="https://images.unsplash.com/photo-1751818397262-040cddef4390?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGluZGlhbiUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwZGFyayUyMG1pbmltYWx8ZW58MXx8fHwxNzc2NTM5MTc0fDA&ixlib=rb-4.1.0&q=80&w=1080"
+              src={avatar}
               alt="avatar"
               className="w-8 h-8 rounded-xl object-cover flex-shrink-0"
               style={{ border: "1.5px solid rgba(0,214,143,0.3)" }}
             />
             <div className="flex-1 min-w-0">
-              <p style={{ fontSize: "12px", color: "#fff" }}>Aryan Sharma</p>
-              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>PRO Member</p>
+              <p style={{ fontSize: "12px", color: "#fff" }} className="truncate">{fullName}</p>
+              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)" }}>View Profile</p>
             </div>
-            <div
-              className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(0,214,143,0.15)" }}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#00D68F" }} />
-            </div>
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

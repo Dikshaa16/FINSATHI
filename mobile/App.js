@@ -13,6 +13,7 @@ import {
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import smsExtractor from './services/smsExtractor';
+import realSmsExtractor from './services/realSmsExtractor';
 import apiService from './services/apiService';
 
 export default function App() {
@@ -40,7 +41,8 @@ export default function App() {
         loadStats();
       }
     } catch (error) {
-      console.log('No saved token found');
+      console.log('Could not load saved token:', error.message);
+      // Continue without saved token - user will need to login
     }
   };
 
@@ -50,10 +52,12 @@ export default function App() {
       return;
     }
 
+    console.log('Login attempt with:', { email, password: password.length + ' chars' });
     setLoading(true);
     const result = await apiService.login(email, password);
     setLoading(false);
 
+    console.log('Login result:', result);
     if (result.success) {
       setIsLoggedIn(true);
       Alert.alert('Success', 'Logged in successfully!');
@@ -80,6 +84,54 @@ export default function App() {
       'Test SMS Loaded',
       `Loaded ${testMessages.length} sample bank SMS messages for testing`
     );
+  };
+
+  const loadRealSMS = async () => {
+    setLoading(true);
+    
+    // Check if real SMS is available
+    if (!realSmsExtractor.isRealSMSAvailable()) {
+      setLoading(false);
+      Alert.alert(
+        'Real SMS Not Available',
+        'Real SMS extraction requires:\n\n' +
+        '1. Android device\n' +
+        '2. Custom development build (not Expo Go)\n' +
+        '3. react-native-get-sms-android package\n\n' +
+        'Using test SMS messages instead.',
+        [
+          { text: 'Use Test SMS', onPress: loadTestSMS }
+        ]
+      );
+      return;
+    }
+
+    // Request permissions and extract
+    const result = await realSmsExtractor.extractRealSMS({
+      maxCount: 100,
+      minDate: Date.now() - (30 * 24 * 60 * 60 * 1000) // Last 30 days
+    });
+
+    setLoading(false);
+
+    if (result.success) {
+      setSmsMessages(result.messages);
+      Alert.alert(
+        'Real SMS Extracted!',
+        `Scanned ${result.totalScanned} messages\n` +
+        `Found ${result.financialFound} financial transactions\n\n` +
+        'Ready to process!'
+      );
+    } else {
+      Alert.alert(
+        'SMS Extraction Failed',
+        result.error || 'Could not extract SMS messages',
+        [
+          { text: 'Use Test SMS', onPress: loadTestSMS },
+          { text: 'Try Again', onPress: loadRealSMS }
+        ]
+      );
+    }
   };
 
   const processSMS = async () => {
@@ -180,6 +232,21 @@ export default function App() {
             <Text style={styles.secondaryButtonText}>Test Connection</Text>
           </TouchableOpacity>
 
+          <View style={styles.demoBox}>
+            <Text style={styles.demoTitle}>🎯 Demo Credentials</Text>
+            <Text style={styles.demoText}>Email: demo@finsathi.com</Text>
+            <Text style={styles.demoText}>Password: Demo123!</Text>
+            <TouchableOpacity
+              style={styles.fillDemoButton}
+              onPress={() => {
+                setEmail('demo@finsathi.com');
+                setPassword('Demo123!');
+              }}
+            >
+              <Text style={styles.fillDemoButtonText}>Fill Demo Credentials</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               ℹ️ This app extracts financial transactions from SMS messages and sends them to your backend for AI analysis.
@@ -240,14 +307,28 @@ export default function App() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>📱 SMS Extraction</Text>
               <Text style={styles.cardDescription}>
-                Load test SMS messages and process them to extract financial transactions
+                Extract real SMS messages from your device or use test data
               </Text>
 
               <TouchableOpacity
                 style={styles.primaryButton}
+                onPress={loadRealSMS}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    📲 Extract Real SMS Messages
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryButton}
                 onPress={loadTestSMS}
               >
-                <Text style={styles.buttonText}>
+                <Text style={styles.secondaryButtonText}>
                   Load Test SMS ({smsMessages.length} loaded)
                 </Text>
               </TouchableOpacity>
@@ -620,6 +701,38 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginTop: 24,
+  },
+  demoBox: {
+    backgroundColor: '#1a2e1a',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  demoTitle: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  demoText: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 4,
+    fontFamily: 'monospace',
+  },
+  fillDemoButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  fillDemoButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   infoText: {
     color: '#888',

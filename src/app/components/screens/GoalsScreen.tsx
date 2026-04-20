@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Target, Plus, CheckCircle2, Clock, TrendingUp, Zap, X } from "lucide-react";
+import { useUser } from "../../Root";
 
 interface Goal {
   id: number;
@@ -22,7 +23,7 @@ const initialGoals: Goal[] = [
   { id: 5, name: "New Phone", emoji: "📱", current: 60000, target: 60000, deadline: "Apr 2026", color: "#10B981", monthlyContrib: 0, status: "completed" },
 ];
 
-function GoalCard({ goal }: { goal: Goal }) {
+function GoalCard({ goal, userName }: { goal: Goal; userName: string }) {
   const pct = Math.min(Math.round((goal.current / goal.target) * 100), 100);
   const remaining = goal.target - goal.current;
   const isComplete = goal.status === "completed";
@@ -137,7 +138,7 @@ function GoalCard({ goal }: { goal: Goal }) {
             style={{ background: "rgba(0,214,143,0.07)", border: "1px solid rgba(0,214,143,0.12)" }}
           >
             <CheckCircle2 size={14} color="#00D68F" strokeWidth={2} />
-            <span style={{ fontSize: "12px", color: "#00D68F" }}>Completed — Great work, Aryan! 🎊</span>
+            <span style={{ fontSize: "12px", color: "#00D68F" }}>Completed — Great work, {userName}! 🎊</span>
           </div>
         )}
       </div>
@@ -238,9 +239,12 @@ function NewGoalModal({ onClose }: { onClose: () => void }) {
 }
 
 export function GoalsScreen() {
+  const { user } = useUser();
   const [goals] = useState<Goal[]>(initialGoals);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [showNewGoal, setShowNewGoal] = useState(false);
+
+  const firstName = user?.firstName || 'User';
 
   const filtered = goals.filter((g) =>
     filter === "all" ? true : filter === "active" ? g.status === "active" : g.status === "completed"
@@ -342,7 +346,7 @@ export function GoalsScreen() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
         <AnimatePresence mode="popLayout">
           {filtered.map((goal) => (
-            <GoalCard key={goal.id} goal={goal} />
+            <GoalCard key={goal.id} goal={goal} userName={firstName} />
           ))}
         </AnimatePresence>
       </div>

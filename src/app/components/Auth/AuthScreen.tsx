@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../../../services/api';
 
 interface AuthScreenProps {
-  onAuthSuccess: () => void;
+  onAuthSuccess: (userData?: any) => void;
 }
 
 export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
@@ -26,8 +26,11 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       if (isLogin) {
         // Login
         const response = await api.login({ email, password });
+        
         if (response.error) {
           setError(response.error);
+        } else if (response.data && response.data.user) {
+          onAuthSuccess(response.data.user);
         } else {
           onAuthSuccess();
         }
@@ -40,13 +43,17 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           lastName,
           phoneNumber,
         });
+        
         if (response.error) {
           setError(response.error);
+        } else if (response.data && response.data.user) {
+          onAuthSuccess(response.data.user);
         } else {
           onAuthSuccess();
         }
       }
     } catch (err: any) {
+      console.error('Authentication error:', err);
       setError(err.message || 'Authentication failed');
     } finally {
       setLoading(false);

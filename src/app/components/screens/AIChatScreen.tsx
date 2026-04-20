@@ -4,6 +4,7 @@ import {
   Sparkles, Send, Mic, TrendingUp, Target, PiggyBank,
   BarChart3, ChevronRight, RefreshCw, Copy, ThumbsUp,
 } from "lucide-react";
+import { useUser } from "../../Root";
 
 interface Message {
   id: number;
@@ -58,11 +59,14 @@ function TypingDots() {
 }
 
 export function AIChatScreen() {
+  const { user } = useUser();
+  const firstName = user?.firstName || 'User';
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 0,
       role: "ai",
-      text: "Hey Aryan! 👋 I'm FIN AI — your personal money genius. I can help you understand your spending, plan investments, set savings goals, and much more.\n\nWhat would you like to explore today?",
+      text: `Hey ${firstName}! 👋 I'm FIN AI — your personal money genius. I can help you understand your spending, plan investments, set savings goals, and much more.\n\nWhat would you like to explore today?`,
       time: "Now",
     },
   ]);
@@ -95,7 +99,7 @@ export function AIChatScreen() {
     setMessages([{
       id: Date.now(),
       role: "ai",
-      text: "Hey Aryan! 👋 I'm FIN AI — your personal money genius. What would you like to explore today?",
+      text: `Hey ${firstName}! 👋 I'm FIN AI — your personal money genius. What would you like to explore today?`,
       time: "Now",
     }]);
     setShowSuggestions(true);

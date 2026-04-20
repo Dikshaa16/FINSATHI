@@ -15,6 +15,7 @@ import {
   Shield,
   Zap,
 } from "lucide-react";
+import { useUser } from "../../Root";
 
 const AVATAR =
   "https://images.unsplash.com/photo-1751818397262-040cddef4390?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGluZGlhbiUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwZGFyayUyMG1pbmltYWx8ZW58MXx8fHwxNzc2NTM5MTc0fDA&ixlib=rb-4.1.0&q=80&w=1080";
@@ -69,10 +70,22 @@ function SkeletonRow() {
 }
 
 export function HomeScreen() {
+  const { user } = useUser();
   const navigate = useNavigate();
   const [balVis, setBalVis] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const balance = useAnimatedNumber(124350, balVis);
+
+  const fullName = user ? `${user.firstName} ${user.lastName}` : 'User';
+  const firstName = user?.firstName || 'User';
+  const avatar = user?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=00D68F&color=fff&size=128`;
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setLoaded(true), 900);
@@ -88,10 +101,10 @@ export function HomeScreen() {
         className="flex items-center justify-between mb-6 md:hidden"
       >
         <div className="flex items-center gap-3">
-          <img src={AVATAR} alt="avatar" className="w-10 h-10 rounded-xl object-cover" style={{ border: "1.5px solid rgba(0,214,143,0.3)" }} />
+          <img src={avatar} alt="avatar" className="w-10 h-10 rounded-xl object-cover" style={{ border: "1.5px solid rgba(0,214,143,0.3)" }} />
           <div>
-            <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>Good morning 👋</p>
-            <p style={{ fontSize: "15px", color: "#fff" }}>Aryan Sharma</p>
+            <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>{getGreeting()} 👋</p>
+            <p style={{ fontSize: "15px", color: "#fff" }}>{fullName}</p>
           </div>
         </div>
         <div className="relative w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: "#181820", border: "1px solid rgba(255,255,255,0.06)" }}>
